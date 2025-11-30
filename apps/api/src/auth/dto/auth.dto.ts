@@ -1,10 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, MaxLength, IsOptional, IsInt, Min, Max, Matches } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsOptional, IsInt, Min, Max, Matches, IsNotEmpty } from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty({ example: 'student@wits.ac.za' })
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({ example: 'Password123!' })
   @IsString()
@@ -13,13 +13,13 @@ export class RegisterDto {
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
-  password: string;
+  password!: string;
 
   @ApiProperty({ example: 'John Doe' })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  displayName: string;
+  displayName!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -47,21 +47,24 @@ export class RegisterDto {
 export class LoginDto {
   @ApiProperty({ example: 'student@wits.ac.za' })
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({ example: 'Password123!' })
   @IsString()
-  password: string;
+  @IsNotEmpty()
+  password!: string;
 }
 
 export class VerifyEmailDto {
   @ApiProperty()
   @IsString()
-  token: string;
+  @IsNotEmpty()
+  token!: string;
 }
 
 export class RefreshTokenDto {
   @ApiProperty()
   @IsString()
-  refreshToken: string;
+  @IsNotEmpty()
+  refreshToken!: string;
 }

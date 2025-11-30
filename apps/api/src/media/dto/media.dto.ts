@@ -1,37 +1,46 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsOptional, IsNumber } from 'class-validator';
 
 export class PresignedUrlDto {
   @ApiProperty({ example: 'photo.jpg' })
   @IsString()
   @IsNotEmpty()
-  filename: string;
+  filename!: string;
 
   @ApiProperty({ example: 'image/jpeg' })
   @IsString()
   @IsNotEmpty()
-  contentType: string;
+  contentType!: string;
 }
 
 export class MediaCallbackDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  mediaId: string;
+  mediaId!: string;
 
   @ApiProperty()
   @IsString()
-  key: string;
+  @IsNotEmpty()
+  key!: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
   width?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
   height?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
   duration?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   thumbnailUrl?: string;
 }

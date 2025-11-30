@@ -1,5 +1,5 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, Min, Max } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsInt, Min, Max, IsNotEmpty } from 'class-validator';
 
 export class FeedQueryDto {
   @ApiPropertyOptional({ default: 20 })
@@ -16,19 +16,22 @@ export class FeedQueryDto {
 }
 
 export class CampusFeedDto extends FeedQueryDto {
-  @ApiPropertyOptional()
+  @ApiProperty()
   @IsString()
-  campusId: string;
+  @IsNotEmpty()
+  campusId!: string;
 }
 
 export class UniversityFeedDto extends FeedQueryDto {
-  @ApiPropertyOptional()
+  @ApiProperty()
   @IsString()
-  universityId: string;
+  @IsNotEmpty()
+  universityId!: string;
 }
 
 export class ProvinceFeedDto extends FeedQueryDto {
-  @ApiPropertyOptional()
+  @ApiProperty()
   @IsString()
-  province: string;
+  @IsNotEmpty()
+  province!: string;
 }

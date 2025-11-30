@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { ModerationStatus } from '@prisma/client';
+
+enum ModerationStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  FLAGGED = 'FLAGGED',
+}
 
 @Injectable()
 export class AdminService {

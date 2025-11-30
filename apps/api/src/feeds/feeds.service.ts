@@ -3,7 +3,13 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { RedisService } from '../common/redis/redis.service';
 import { RankingService } from './ranking.service';
 import { FeedQueryDto } from './dto/feed.dto';
-import { Visibility } from '@prisma/client';
+
+enum Visibility {
+  CAMPUS = 'CAMPUS',
+  UNIVERSITY = 'UNIVERSITY',
+  PROVINCE = 'PROVINCE',
+  NATIONAL = 'NATIONAL',
+}
 
 // Feed composition weights
 const FEED_MIX = {

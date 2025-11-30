@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsArray, IsEnum, MaxLength } from 'class-validator';
-import { Visibility } from '@prisma/client';
+import { IsString, IsOptional, IsBoolean, IsArray, IsEnum, MaxLength, IsNotEmpty } from 'class-validator';
+
+enum Visibility {
+  CAMPUS = 'CAMPUS',
+  UNIVERSITY = 'UNIVERSITY',
+  PROVINCE = 'PROVINCE',
+  NATIONAL = 'NATIONAL',
+}
 
 export class CreatePostDto {
   @ApiPropertyOptional({ example: 'Just aced my exam! 🎉' })
@@ -54,8 +60,9 @@ export class UpdatePostDto {
 export class CreateCommentDto {
   @ApiProperty({ example: 'Great post!' })
   @IsString()
+  @IsNotEmpty()
   @MaxLength(2000)
-  content: string;
+  content!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
