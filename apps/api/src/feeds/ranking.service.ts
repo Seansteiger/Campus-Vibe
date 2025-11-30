@@ -1,15 +1,24 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RedisService } from '../common/redis/redis.service';
 
-// Ranking weights (configurable)
-const RANKING_WEIGHTS = {
+// Default ranking weights - can be overridden via environment variables
+const DEFAULT_RANKING_WEIGHTS = {
   recency: 0.3,
   engagement: 0.25,
   socialGraph: 0.2,
   relevance: 0.15,
   academic: 0.1,
 };
+
+interface RankingWeights {
+  recency: number;
+  engagement: number;
+  socialGraph: number;
+  relevance: number;
+  academic: number;
+}
 
 interface RankedPost {
   id: string;
@@ -33,10 +42,34 @@ interface PostFeatures {
 
 @Injectable()
 export class RankingService {
+  private readonly rankingWeights: RankingWeights;
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    // Load ranking weights from environment or use defaults
+    // Can be configured for A/B testing via RANKING_WEIGHT_* env vars
+    this.rankingWeights = {
+      recency: this.parseWeight('RANKING_WEIGHT_RECENCY', DEFAULT_RANKING_WEIGHTS.recency),
+      engagement: this.parseWeight('RANKING_WEIGHT_ENGAGEMENT', DEFAULT_RANKING_WEIGHTS.engagement),
+      socialGraph: this.parseWeight('RANKING_WEIGHT_SOCIAL_GRAPH', DEFAULT_RANKING_WEIGHTS.socialGraph),
+      relevance: this.parseWeight('RANKING_WEIGHT_RELEVANCE', DEFAULT_RANKING_WEIGHTS.relevance),
+      academic: this.parseWeight('RANKING_WEIGHT_ACADEMIC', DEFAULT_RANKING_WEIGHTS.academic),
+    };
+  }
+
+  private parseWeight(envKey: string, defaultValue: number): number {
+    const envValue = this.configService.get<string>(envKey);
+    if (envValue) {
+      const parsed = parseFloat(envValue);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
+        return parsed;
+      }
+    }
+    return defaultValue;
+  }
 
   async rankPosts(
     postIds: string[],
@@ -150,13 +183,13 @@ export class RankingService {
     // Academic boost
     const academicScore = features.isAcademic ? 1 : 0;
 
-    // Weighted final score
+    // Weighted final score using configurable weights
     const finalScore =
-      RANKING_WEIGHTS.recency * features.recencyScore +
-      RANKING_WEIGHTS.engagement * Math.min(engagementScore / 10, 1) +
-      RANKING_WEIGHTS.socialGraph * socialScore +
-      RANKING_WEIGHTS.relevance * relevanceScore +
-      RANKING_WEIGHTS.academic * academicScore;
+      this.rankingWeights.recency * features.recencyScore +
+      this.rankingWeights.engagement * Math.min(engagementScore / 10, 1) +
+      this.rankingWeights.socialGraph * socialScore +
+      this.rankingWeights.relevance * relevanceScore +
+      this.rankingWeights.academic * academicScore;
 
     return finalScore;
   }

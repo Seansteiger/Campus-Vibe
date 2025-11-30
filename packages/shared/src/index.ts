@@ -229,8 +229,15 @@ export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 export const MAX_VIDEO_DURATION = 60; // seconds
 
 // Utility functions
-export function isInstitutionalEmail(email: string): boolean {
-  const domain = email.split('@')[1]?.toLowerCase();
+export function isInstitutionalEmail(email: string | null | undefined): boolean {
+  if (!email || typeof email !== 'string') {
+    return false;
+  }
+  const parts = email.split('@');
+  if (parts.length !== 2) {
+    return false;
+  }
+  const domain = parts[1]?.toLowerCase();
   return domain?.endsWith('.ac.za') || false;
 }
 

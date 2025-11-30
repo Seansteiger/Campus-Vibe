@@ -13,9 +13,40 @@ import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../common/redis/redis.service';
 import { ChatService } from './chat.service';
 
+// CORS origins should be configured via environment variable for production
+const getCorsOrigins = (configService: ConfigService): string | string[] => {
+  const corsOrigins = configService.get<string>('CORS_ORIGINS');
+  if (corsOrigins) {
+    return corsOrigins.split(',').map(origin => origin.trim());
+  }
+  // Default to localhost for development only
+  return process.env.NODE_ENV === 'production'
+    ? []  // Block all in production if not configured
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8081'];
+};
+
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+      // In development, allow localhost
+      if (process.env.NODE_ENV !== 'production') {
+        const devOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8081'];
+        if (devOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+      }
+      // In production, check against configured CORS_ORIGINS
+      const allowedOrigins = process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || [];
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
   },
   namespace: '/chat',
 })
