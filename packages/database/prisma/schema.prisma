@@ -1,0 +1,506 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum VerificationType {
+  EMAIL
+  STUDENT_CARD
+  SSO
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
+enum Visibility {
+  CAMPUS
+  UNIVERSITY
+  PROVINCE
+  NATIONAL
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE
+  MISINFORMATION
+  OTHER
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+// ==================== USER & AUTH ====================
+
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  passwordHash     String
+  displayName      String
+  avatarUrl        String?
+  universityId     String?
+  campusId         String?
+  programId        String?
+  year             Int?
+  verified         Boolean           @default(false)
+  verificationType VerificationType?
+  bio              String?
+  interests        String[]          @default([])
+  role             UserRole          @default(USER)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  university   University? @relation(fields: [universityId], references: [id])
+  campus       Campus?     @relation(fields: [campusId], references: [id])
+  program      Program?    @relation(fields: [programId], references: [id])
+  posts        Post[]
+  followers    Follow[]    @relation("followers")
+  following    Follow[]    @relation("following")
+  likes        Like[]
+  comments     Comment[]
+  shares       Share[]
+  savedPosts   SavedPost[]
+  messages     Message[]
+  chatMembers  ChatMember[]
+  events       Event[]
+  reports      Report[]    @relation("reporter")
+  reportedBy   Report[]    @relation("reported")
+  notifications Notification[]
+  verificationRequests VerificationRequest[]
+
+  @@index([universityId])
+  @@index([campusId])
+  @@index([programId])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model VerificationRequest {
+  id           String   @id @default(cuid())
+  userId       String
+  type         VerificationType
+  documentUrl  String?  // Encrypted URL for student card
+  status       ModerationStatus @default(PENDING)
+  reviewedBy   String?
+  reviewNotes  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// ==================== UNIVERSITY & CAMPUS ====================
+
+model University {
+  id        String    @id @default(cuid())
+  name      String
+  province  String
+  domains   String[]  @default([])  // Accepted email domains like ['wits.ac.za']
+  logoUrl   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  campuses  Campus[]
+  programs  Program[]
+  users     User[]
+  posts     Post[]
+
+  @@index([province])
+}
+
+model Campus {
+  id           String  @id @default(cuid())
+  name         String
+  universityId String
+  lat          Float
+  lng          Float
+  address      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  users      User[]
+  posts      Post[]
+  events     Event[]
+
+  @@index([universityId])
+  @@index([lat, lng])
+}
+
+model Program {
+  id           String  @id @default(cuid())
+  name         String
+  code         String?
+  universityId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  users      User[]
+
+  @@index([universityId])
+}
+
+// ==================== POSTS & MEDIA ====================
+
+model Post {
+  id           String     @id @default(cuid())
+  authorId     String
+  content      String?
+  isAcademic   Boolean    @default(false)
+  campusId     String?
+  universityId String?
+  province     String?
+  visibility   Visibility @default(CAMPUS)
+  tags         String[]   @default([])
+  moderationStatus ModerationStatus @default(APPROVED)
+  viewCount    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  campus     Campus?    @relation(fields: [campusId], references: [id])
+  university University? @relation(fields: [universityId], references: [id])
+  media      Media[]
+  likes      Like[]
+  comments   Comment[]
+  shares     Share[]
+  savedBy    SavedPost[]
+  reports    Report[]
+
+  @@index([authorId])
+  @@index([campusId])
+  @@index([universityId])
+  @@index([province])
+  @@index([visibility])
+  @@index([createdAt])
+  @@index([moderationStatus])
+}
+
+model Media {
+  id         String    @id @default(cuid())
+  postId     String?
+  messageId  String?
+  url        String
+  mime       String
+  type       MediaType
+  width      Int?
+  height     Int?
+  duration   Int?      // seconds for videos
+  thumbnailUrl String?
+  transcoded Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([messageId])
+}
+
+// ==================== SOCIAL INTERACTIONS ====================
+
+model Follow {
+  id         String   @id @default(cuid())
+  followerId String
+  followeeId String
+  createdAt  DateTime @default(now())
+
+  follower User @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  followee User @relation("followers", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followeeId])
+  @@index([followerId])
+  @@index([followeeId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([postId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  content   String
+  parentId  String?  // For nested comments
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("replies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("replies")
+
+  @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model Share {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  content   String?  // Optional message when sharing
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model SavedPost {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+}
+
+// ==================== CHAT & MESSAGING ====================
+
+model Chat {
+  id        String   @id @default(cuid())
+  isGroup   Boolean  @default(false)
+  name      String?  // For group chats
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  ChatMember[]
+  messages Message[]
+
+  @@index([createdAt])
+}
+
+model ChatMember {
+  id        String   @id @default(cuid())
+  chatId    String
+  userId    String
+  isAdmin   Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+  leftAt    DateTime?
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  senderId  String
+  content   String?
+  mediaUrl  String?
+  readBy    String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chat   Chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User    @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  media  Media[]
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ==================== EVENTS ====================
+
+model Event {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  startAt     DateTime
+  endAt       DateTime?
+  campusId    String?
+  locationLat Float?
+  locationLng Float?
+  address     String?
+  imageUrl    String?
+  createdBy   String
+  tags        String[]  @default([])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  creator User    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  campus  Campus? @relation(fields: [campusId], references: [id])
+
+  @@index([campusId])
+  @@index([startAt])
+  @@index([createdBy])
+}
+
+// ==================== OPPORTUNITIES ====================
+
+model Opportunity {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  sourceUrl   String
+  fieldTags   String[]  @default([])
+  yearMin     Int?
+  yearMax     Int?
+  deadline    DateTime?
+  provider    String?
+  type        String?   // bursary, internship, scholarship
+  provinces   String[]  @default([])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([deadline])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ==================== MODERATION & REPORTING ====================
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String
+  postId     String?
+  userId     String?      // If reporting a user
+  reason     ReportReason
+  details    String?
+  status     ModerationStatus @default(PENDING)
+  reviewedBy String?
+  actionTaken String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  reporter User  @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  post     Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reported User? @relation("reported", fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([postId])
+  @@index([reporterId])
+}
+
+// ==================== NOTIFICATIONS ====================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // follow, like, comment, share, mention, opportunity
+  title     String
+  body      String?
+  data      Json?    // Additional data like postId, userId, etc.
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+// ==================== ADMIN ====================
+
+model AcceptedDomain {
+  id           String @id @default(cuid())
+  domain       String @unique
+  universityId String?
+  createdAt    DateTime @default(now())
+
+  @@index([domain])
+}
+
+// ==================== ANALYTICS ====================
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  eventType String   // user.register, post.create, post.like, etc.
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ==================== IKIGAI ====================
+
+model IkigaiProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  passions    String[] @default([])
+  skills      String[] @default([])
+  professions String[] @default([])
+  causes      String[] @default([])
+  score       Json?    // AI-computed scores
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}

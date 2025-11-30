@@ -1,0 +1,15 @@
+module.exports = {
+  extends: [
+    'next/core-web-vitals',
+    'plugin:@typescript-eslint/recommended',
+    'prettier',
+  ],
+  plugins: ['@typescript-eslint'],
+  parser: '@typescript-eslint/parser',
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    'react/react-in-jsx-scope': 'off',
+  },
+  ignorePatterns: ['node_modules/', '.next/', '.turbo/'],
+};
